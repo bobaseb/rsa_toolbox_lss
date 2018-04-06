@@ -1,7 +1,8 @@
-function mean_acc = run_clf(glm_model,DATA,nconditions,nruns,nf,svm_options)
+function [all_chosen_voxels, mean_acc] = run_clf(glm_model,DATA,nconditions,nruns,nf,svm_options)
 %% evaluate glm models
 runs = 1:nruns;
 
+all_chosen_voxels=[];
 for run = 1:nruns
     
     X_test =  zscore(DATA.(sprintf('run%d',run)).fMRI.(sprintf(glm_model)));
@@ -36,11 +37,16 @@ for run = 1:nruns
     [~,voxel_ranks] = sort(anovas,'descend');
     
     chosen_voxels = voxel_ranks(1:nf);
+    all_chosen_voxels = [all_chosen_voxels; chosen_voxels];
     
      X_test = X_test(:,chosen_voxels);
      %X_test = zscore(X_test); zscore up top
      X_train = X_train(:,chosen_voxels);
      %X_train = zscore(X_train); zscore up top
+     
+     %big_X = [X_test; X_train];
+     %beta_var = var(reshape(big_X,1,numel(big_X))); 
+     
     %% run classifiers
     
     %[B,~,~] = mnrfit(X_train,Y_train');
