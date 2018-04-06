@@ -131,21 +131,21 @@ for o = 1:nNoisyPatterns
     varargout{3} = Y_true;
 	%% Do GLM for Y_noise matrix
 	Y_noisy = Y_true + E;
-	B_noisy = inv(X' * X) * X' * Y_noisy;
+	%B_noisy = inv(X' * X) * X' * Y_noisy;
     
-    fMRI.B_noisy = B_noisy; %used to be saved as just fMRI.B
+    %fMRI.B_noisy = B_noisy; %used to be saved as just fMRI.B
     fMRI.Y_noisy = Y_noisy;
     fMRI.X = X;
     fMRI.groundTruth = b;
     
     %save some extra goodies
-    fMRI.E = E;
+    %fMRI.E = E;
     fMRI.sequence = sequence;
-    fMRI.Y_true = Y_true;
+    %fMRI.Y_true = Y_true;
     fMRI.B_true = B_true;
-    fMRI.b = b;
-    fMRI.msk = msk;
-    fMRI.saturated_model = trialImpulseX_TRvol2;
+    %fMRI.b = b;
+    %fMRI.msk = msk;
+    %fMRI.saturated_model = trialImpulseX_TRvol2;
     fMRI.volumeSize_vox = simulationOptions.volumeSize_vox;
     fMRI.X_all = X_all;
     
