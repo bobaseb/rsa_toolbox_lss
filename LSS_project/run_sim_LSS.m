@@ -51,6 +51,11 @@ for run = 1:simulationOptions.nruns
     num_signal_voxels = numel(find(true_voxel_msk));
     DATA.rand_signal_voxel = signal_voxel_cols(rsv_num); %best signal voxel (only used if simulations' nf = 1)
     
+    %define a cube around voxel of interest (only used if simulations' nf = -1)
+    [i,j,k] = ind2sub(simulationOptions.brainVol,DATA.rand_signal_voxel);
+    DATA.rsv_cube = simulationOptions.cube2 + [i,j,k]; %cube2 does NOT contain the center voxel, cube1 does
+    DATA.rsv_cube_inds = sub2ind(simulationOptions.brainVol,DATA.rsv_cube(:,1),DATA.rsv_cube(:,2),DATA.rsv_cube(:,3));
+    
     tmp_B_true = reshape(DATA.(sprintf('run%d',run)).fMRI.B_true(true_voxel_msk),num_signal_voxels,1);
     DATA2.(sprintf('run%d',run)).var0 = var(tmp_B_true);
     
@@ -186,8 +191,11 @@ end
 
 %% run classifiers
 
+accs=[];
 for i = 1:length(simulationOptions.model_list)
-    [chosen_voxels, accs(i)] = run_clf_LSS(simulationOptions.model_list{i},DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
+    [chosen_voxels, acc] = run_clf_LSS(simulationOptions.model_list{i},DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
+    
+    accs = [accs acc];
     
     if simulationOptions.nf > 1
         %compute overlap between feature selection & real signal voxels
