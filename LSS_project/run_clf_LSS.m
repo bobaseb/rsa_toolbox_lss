@@ -1,4 +1,4 @@
-function [all_chosen_voxels, mean_acc] = run_clf_LSS(glm_model,DATA,nconditions,nruns,nf,svm_options)
+function [all_chosen_voxels, mean_acc] = run_clf(glm_model,DATA,nconditions,nruns,nf,svm_options)
 %runs CV classifiers (SVM or logistic regression), needs anova_vec function for feature selection
 
 %% evaluate glm models
@@ -25,11 +25,7 @@ for run = 1:nruns
     end
     
     %% do feature selection (anovas/single voxel)
-    if nf==1 || nf==-1
-        if nf==-1 %create neighbour average, do before single voxel
-            X_test2 = mean(X_test(:,DATA.rsv_cube_inds),2);
-            X_train2 = mean(X_train(:,DATA.rsv_cube_inds),2);
-        end
+    if nf==1
         X_test = X_test(:,DATA.rand_signal_voxel);
         X_train = X_train(:,DATA.rand_signal_voxel);
     else
@@ -43,30 +39,27 @@ for run = 1:nruns
     %% run classifiers
     
     if svm_options==0
-        acc = logreg(X_train,Y_train,X_test,Y_test);
-        accs(run) = acc;
+         try
+            [B,~,~] = mnrfit(X_train,Y_train');
+        catch %if matrix is not PD, then take off features
+            X_train = X_train(:,1:end-1);
+            X_test = X_test(:,1:end-1);
+           [B,~,~] = mnrfit(X_train,Y_train');
+        end
+        pihat = mnrval(B,X_test);
+        preds=[];
+        for i = 1:length(Y_test)
+            [~,pred] = max(pihat(i,:));
+            preds(i) = pred;
+        end
+        accs(run) = sum(preds==Y_test)./length(Y_test);
     else
-        svm_model = svmtrain(Y_train', X_train, svm_options); % -t 0 is linear kernel, -t 2 rbf
+        svm_model = svmtrain(Y_train', X_train, svm_options); %nu-svm is supposed to be -s 1??? -t 0 is linear kernel, -t 2 rbf
         [~, acc, ~] = svmpredict(Y_test', X_test, svm_model);
         accs(run) = acc(1);
-    end
-    
-    %run classifier also for average from neighbours if nf==-1
-    if nf==-1 & svm_options==0
-        acc2 = logreg(X_train2,Y_train,X_test2,Y_test);
-        accs2(run) = acc2;
-    elseif nf==-1
-        svm_model2 = svmtrain(Y_train', X_train2, svm_options); % -t 0 is linear kernel, -t 2 rbf
-        [~, acc2, ~] = svmpredict(Y_test', X_test2, svm_model2);
-        accs2(run) = acc2(1);
     end
     
 end
 
 mean_acc = mean(accs);
-
-if nf==-1
-    mean_acc = [mean_acc; mean(accs2)];
-end
-
 end

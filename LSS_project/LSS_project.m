@@ -1,7 +1,7 @@
 clear all; close all; clc;
 
 %dependencies: rsatoolbox, libsvm, 
-%run_clf_LSS, anova_vec, run_sim_LSS,
+%run_clf_LSS, run_sim_LSS,
 %simulateClusteredfMRIData_fullBrain_LSS (modified from rsatoolbox),
 %generateCognitiveModel_fastButTrialsNeedToStartOnVols_LSS (modified from rsatoolbox)
 
@@ -21,7 +21,7 @@ addpath(genpath(toolboxRoot)); %add all sub-paths to path
 addpath('/home/seb/Documents/libsvm-3.22/matlab');
 
 %where to save the simulation results
-save_path = '/media/seb/HD_Numba_Juan/sim_results_1voxel_nosmoothing_cube';
+save_path = '/media/seb/HD_Numba_Juan/sim_results_1voxel_nosmoothing';
 
 %% setup model parameters
 
@@ -41,7 +41,7 @@ simulationOptions.nConditions = 2; %how many stimulus conditions (i.e., classes)
 %simulationOptions.svm_options = 0;
 simulationOptions.svm_options = '-s 0 -t 0 -n 0.5 -h 0'; % -t 0 is linear kernel, -t 2 rbf, -h 0 is faster (shrinking heuristic)
 % check libsvm website for more information on options
-simulationOptions.nf = -1; %number of features (voxels) that go into the classifier (used 20 for logistic regression & 300 for linear SVM)
+simulationOptions.nf = 1; %number of features (voxels) that go into the classifier (used 20 for logistic regression & 300 for linear SVM)
 %if nf=1 then a random signal voxel is chosen
 
 all_models = 1;
@@ -73,15 +73,7 @@ simulationOptions.spatiotemporalSmoothingFWHM_mm_s = [1 1 1 1]; %[4 4 4 4.5];
 
 simulationOptions.brainVol = [64 64 32];
 simulationOptions.effectCen = [20 20 15];
-simulationOptions.effectCen_lin_ind = sub2ind(simulationOptions.brainVol,simulationOptions.effectCen(1),simulationOptions.effectCen(2),simulationOptions.effectCen(3)); %linear index
 
-%define a cube with and without center voxel
-vecs=[];
-for i = 0:26
-    vecs = [vecs; str2num(reshape(dec2base(i,3,3),3,1))'];
-end
-simulationOptions.cube1 = vecs-1;
-simulationOptions.cube2 = vecs(sum(vecs==[0,0,0],2)~=3,:);
 %% setup the noise levels and collinearity (through trial duration)
 
 % with these two lists, 8 levels will be run in total
@@ -98,8 +90,8 @@ for trial_duration = 1:length(trial_duration_list)
     for big_sigma = 1:length(big_sigma_list) %for scan_noise = 1:length(scan_noise_list) %
         
         if parjob==0
-            simulationOptions.trialDuration = 2;
-            simulationOptions.big_sigma = 10;
+            simulationOptions.trialDuration = 2; %2;
+            simulationOptions.big_sigma = 10; %5^2;
             simulationOptions.scannerNoiseLevel = 10000;
             [accs, DATA] = run_sim_LSS(simulationOptions);
             disp(simulationOptions.model_list)
@@ -111,38 +103,26 @@ for trial_duration = 1:length(trial_duration_list)
             
             nworkers = 10;
             all_accs=[];
-            all_accs2=[]; %only used if nf==-1
             SIMS=[];
             parpool(nworkers)
             
             parfor i=1:njobs
                 [accs, DATA] = run_sim_LSS(simulationOptions);
-                all_accs = [all_accs; accs(1,:)];
-                if simulationOptions.nf==-1
-                    all_accs2 = [all_accs2; accs(2,:)];
-                end
+                all_accs = [all_accs; accs];
                 SIMS = [SIMS, DATA];
             end
-            
+
             delete(gcp('nocreate'))
             disp(simulationOptions.model_list)
             disp(mean(all_accs))
-            
-            if simulationOptions.nf==-1
-                disp(mean(all_accs2))
-            end
             
             if exist(save_path,'dir')==0
                 mkdir(save_path)
             end
             
             cd(save_path)
-            if simulationOptions.nf==-1
-                save(['bsig',num2str(simulationOptions.big_sigma),'tsig',num2str(simulationOptions.trial_sigma),'isi', num2str(simulationOptions.trialDuration),'.mat'],'SIMS','all_accs','all_accs2','-v7.3')
-            else
-                save(['bsig',num2str(simulationOptions.big_sigma),'tsig',num2str(simulationOptions.trial_sigma),'isi', num2str(simulationOptions.trialDuration),'.mat'],'SIMS','all_accs','-v7.3')
-                %save(['scan_sig',num2str(simulationOptions.scannerNoiseLevel),'tsig',num2str(simulationOptions.trial_sigma),'isi', num2str(simulationOptions.trialDuration),'.mat'],'SIMS','all_accs')
-            end
+            save(['bsig',num2str(simulationOptions.big_sigma),'tsig',num2str(simulationOptions.trial_sigma),'isi', num2str(simulationOptions.trialDuration),'.mat'],'SIMS','all_accs','-v7.3')
+            %save(['scan_sig',num2str(simulationOptions.scannerNoiseLevel),'tsig',num2str(simulationOptions.trial_sigma),'isi', num2str(simulationOptions.trialDuration),'.mat'],'SIMS','all_accs')
             
             cd([toolboxRoot '/LSS_project/'])
         end
