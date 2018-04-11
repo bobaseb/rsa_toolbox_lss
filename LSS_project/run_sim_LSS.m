@@ -24,6 +24,8 @@ cov_mat = wishrnd(sigma_mat*simulationOptions.trial_sigma,round(simulationOption
 simulationOptions.R = R; % save the mean vectors
 simulationOptions.cov_mat = cov_mat./round(simulationOptions.cov_mat_df); % scale the covariance matrix
 
+R_var = var(simulationOptions.R);
+[~,rsv_num] = max(R_var); %best signal voxel (only used if simulations' nf = 1)
 
 for run = 1:simulationOptions.nruns
     %simulate fMRI data
@@ -37,7 +39,7 @@ for run = 1:simulationOptions.nruns
     
     true_voxel_msk = DATA.(sprintf('run%d',run)).fMRI.B_true~=0; %non-zero voxel indices for locating signal voxels
     signal_voxel_cols = find(sum(true_voxel_msk));
-
+    
     %probably not the best way to relax signal voxels, need to consider 3D
     %structure
     relaxed_signal_voxel_cols=[]; %relaxing signal voxel columns to take into account smoothing, of interest for classifier feature selection
@@ -45,11 +47,15 @@ for run = 1:simulationOptions.nruns
         relaxed_signal_voxel_cols = [relaxed_signal_voxel_cols; signal_voxel_cols+relax];
     end
     relaxed_signal_voxel_cols = unique(relaxed_signal_voxel_cols);
-
+    
     num_signal_voxels = numel(find(true_voxel_msk));
+    DATA.rand_signal_voxel = signal_voxel_cols(rsv_num); %best signal voxel (only used if simulations' nf = 1)
+    
     tmp_B_true = reshape(DATA.(sprintf('run%d',run)).fMRI.B_true(true_voxel_msk),num_signal_voxels,1);
     DATA2.(sprintf('run%d',run)).var0 = var(tmp_B_true);
     
+    %autocorr(DATA.(sprintf('run%d',run)).fMRI.Y_noisy(:,rsv_num)) %check
+    %the autocorrelation function of the data
     %% run LSS models
     
     % saturated model (LSA)
@@ -183,20 +189,28 @@ end
 for i = 1:length(simulationOptions.model_list)
     [chosen_voxels, accs(i)] = run_clf_LSS(simulationOptions.model_list{i},DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
     
-    %compute overlap between feature selection & real signal voxels
-    feat_sel_ratios=[];
-    feat_sel_ratios_relaxed=[];
-    for j = 1:simulationOptions.nruns
-        feat_sel_ratios(j) = numel(intersect(signal_voxel_cols,chosen_voxels(j,:)))./numel(chosen_voxels(j,:)); %ratio of chosen voxels that were true signal, given number of features (nf) selected for classifier
-        feat_sel_ratios_relaxed(j) = numel(intersect(relaxed_signal_voxel_cols,chosen_voxels(j,:)))./numel(chosen_voxels(j,:)); %relaxing signal voxels due to smoothing
+    if simulationOptions.nf > 1
+        %compute overlap between feature selection & real signal voxels
+        feat_sel_ratios=[];
+        feat_sel_ratios_relaxed=[];
+        for j = 1:simulationOptions.nruns
+            feat_sel_ratios(j) = numel(intersect(signal_voxel_cols,chosen_voxels(j,:)))./numel(chosen_voxels(j,:)); %ratio of chosen voxels that were true signal, given number of features (nf) selected for classifier
+            feat_sel_ratios_relaxed(j) = numel(intersect(relaxed_signal_voxel_cols,chosen_voxels(j,:)))./numel(chosen_voxels(j,:)); %relaxing signal voxels due to smoothing
+        end
+        
+        all_feat_sel_ratios(i) = mean(feat_sel_ratios);
+        all_feat_sel_ratios_relaxed(i) = mean(feat_sel_ratios_relaxed);
     end
-
-    all_feat_sel_ratios(i) = mean(feat_sel_ratios);
-    all_feat_sel_ratios_relaxed(i) = mean(feat_sel_ratios_relaxed);
+    
 end
 
-DATA2.(sprintf('run%d',run)).all_feat_sel_ratios = all_feat_sel_ratios;
-DATA2.(sprintf('run%d',run)).all_feat_sel_ratios_relaxed = all_feat_sel_ratios_relaxed;
+if simulationOptions.nf > 1
+    DATA2.(sprintf('run%d',run)).all_feat_sel_ratios = all_feat_sel_ratios;
+    DATA2.(sprintf('run%d',run)).all_feat_sel_ratios_relaxed = all_feat_sel_ratios_relaxed;
+else
+    DATA2.(sprintf('run%d',run)).all_feat_sel_ratios = [];
+    DATA2.(sprintf('run%d',run)).all_feat_sel_ratios_relaxed = [];    
+end
 
 end
 

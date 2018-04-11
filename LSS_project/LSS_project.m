@@ -21,12 +21,12 @@ addpath(genpath(toolboxRoot)); %add all sub-paths to path
 addpath('/home/seb/Documents/libsvm-3.22/matlab');
 
 %where to save the simulation results
-save_path = '/media/seb/HD_Numba_Juan/sim_results';
+save_path = '/media/seb/HD_Numba_Juan/sim_results_1voxel_nosmoothing';
 
 %% setup model parameters
 
 parjob = 1; %1 if using cluster, runs njobs
-njobs = 300; %number of jobs per noise setting, only if running on many cores
+njobs = 50; %number of jobs per noise setting, only if running on many cores
 
 simulationOptions.nRepititions = 20; %repetitions per stimulus
 simulationOptions.nruns = 3; %separate fMRI blocks
@@ -35,9 +35,14 @@ simulationOptions.stimulusDuration = 1.5; %in seconds
 simulationOptions.TR = 1; %scanner TR
 simulationOptions.nConditions = 2; %how many stimulus conditions (i.e., classes)?
 
+%setup classifier information
+%if logistic regression is preferred to svm then: simulationOptions.svm_options = 0;
+%otherwise, pass in a string with libsvm parameters
+%simulationOptions.svm_options = 0;
 simulationOptions.svm_options = '-s 0 -t 0 -n 0.5 -h 0'; % -t 0 is linear kernel, -t 2 rbf, -h 0 is faster (shrinking heuristic)
 % check libsvm website for more information on options
-simulationOptions.nf = 300; %number of features (voxels) that go into the classifier
+simulationOptions.nf = 1; %number of features (voxels) that go into the classifier (used 20 for logistic regression & 300 for linear SVM)
+%if nf=1 then a random signal voxel is chosen
 
 all_models = 1;
 if all_models==0
@@ -47,11 +52,11 @@ else
 end
 
 simulationOptions.trial_sigma = 0.5^2; %variance between trials for each stimulus condition
-simulationOptions.exp = 1; %controls variance of the wishart distribution
 simulationOptions.volumeSize_vox = [7 7 7]; % size of the signal
 simulationOptions.signal_voxels = prod(simulationOptions.volumeSize_vox); % number of signal voxels
+simulationOptions.exp = 1; %controls variance of the wishart distribution
 simulationOptions.cov_mat_df = simulationOptions.signal_voxels^simulationOptions.exp; % controls variance of the wishart distribution
-simulationOptions.corrs = 0.7^2; %correlations for the covariance matrix
+simulationOptions.corrs = 0.7^2; %correlations for the covariance matrix from which trial vectors for each stimulus are sampled
 
 % A triple containing the dimensions of one voxel in mm.
 simulationOptions.voxelSize_mm = [3 3 3.75];
@@ -64,7 +69,7 @@ simulationOptions.scannerNoiseLevel = 10000; % used to be 3000
 % A 4-tuple. The first three entries are the x, y and z values for the gaussian
 % spatial smoothing kernel FWHM in mm and the fourth is the size of the temporal
 % smoothing FWHM.
-simulationOptions.spatiotemporalSmoothingFWHM_mm_s = [4 4 4 4.5];
+simulationOptions.spatiotemporalSmoothingFWHM_mm_s = [1 1 1 1]; %[4 4 4 4.5];
 
 simulationOptions.brainVol = [64 64 32];
 simulationOptions.effectCen = [20 20 15];
@@ -116,7 +121,7 @@ for trial_duration = 1:length(trial_duration_list)
             end
             
             cd(save_path)
-            save(['bsig',num2str(simulationOptions.big_sigma),'tsig',num2str(simulationOptions.trial_sigma),'isi', num2str(simulationOptions.trialDuration),'.mat'],'SIMS','all_accs')
+            save(['bsig',num2str(simulationOptions.big_sigma),'tsig',num2str(simulationOptions.trial_sigma),'isi', num2str(simulationOptions.trialDuration),'.mat'],'SIMS','all_accs','-v7.3')
             %save(['scan_sig',num2str(simulationOptions.scannerNoiseLevel),'tsig',num2str(simulationOptions.trial_sigma),'isi', num2str(simulationOptions.trialDuration),'.mat'],'SIMS','all_accs')
             
             cd([toolboxRoot '/LSS_project/'])

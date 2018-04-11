@@ -1,4 +1,6 @@
 function [all_chosen_voxels, mean_acc] = run_clf(glm_model,DATA,nconditions,nruns,nf,svm_options)
+%runs CV classifiers (SVM or logistic regression), needs anova_vec function for feature selection
+
 %% evaluate glm models
 runs = 1:nruns;
 
@@ -22,48 +24,41 @@ for run = 1:nruns
         end
     end
     
-    %% do feature selection (anovas)
-    bg_var = zeros(1,length(X_train));
-    wg_var =  zeros(1,length(X_train));
-    grand_means = mean(X_train);
-    for cond = 1:nconditions
-        msk = Y_train==cond;
-        sample_means = mean(X_train(msk,:));
-        bg_var = bg_var + sum(msk)*((sample_means-grand_means).^2)/(nconditions-1); %between-group variance
-        samples = X_train(msk,:);
-        wg_var = wg_var + sum((samples-sample_means).^2)/(length(Y_train)-nconditions); %within-group variance
+    %% do feature selection (anovas/single voxel)
+    if nf==1
+        X_test = X_test(:,DATA.rand_signal_voxel);
+        X_train = X_train(:,DATA.rand_signal_voxel);
+    else
+        anovas = anova_vec(X_train,Y_train);
+        [~,voxel_ranks] = sort(anovas,'descend');
+        chosen_voxels = voxel_ranks(1:nf);
+        all_chosen_voxels = [all_chosen_voxels; chosen_voxels];
+        X_test = X_test(:,chosen_voxels);
+        X_train = X_train(:,chosen_voxels);
     end
-    anovas = bg_var./wg_var;
-    [~,voxel_ranks] = sort(anovas,'descend');
-    
-    chosen_voxels = voxel_ranks(1:nf);
-    all_chosen_voxels = [all_chosen_voxels; chosen_voxels];
-    
-     X_test = X_test(:,chosen_voxels);
-     %X_test = zscore(X_test); zscore up top
-     X_train = X_train(:,chosen_voxels);
-     %X_train = zscore(X_train); zscore up top
-     
-     %big_X = [X_test; X_train];
-     %beta_var = var(reshape(big_X,1,numel(big_X))); 
-     
     %% run classifiers
     
-    %[B,~,~] = mnrfit(X_train,Y_train');
-    %X_train
-    %pihat = mnrval(B,X_test);
-    %preds=[];
-    %for i = 1:length(Y_test)
-    %    [~,pred] = max(pihat(i,:));
-    %    preds(i) = pred;
-    %end
-    %preds
-    %(preds==Y_test)
-    %accs(run) = sum(preds==Y_test)./length(Y_test);
+    if svm_options==0
+         try
+            [B,~,~] = mnrfit(X_train,Y_train');
+        catch %if matrix is not PD, then take off features
+            X_train = X_train(:,1:end-1);
+            X_test = X_test(:,1:end-1);
+           [B,~,~] = mnrfit(X_train,Y_train');
+        end
+        pihat = mnrval(B,X_test);
+        preds=[];
+        for i = 1:length(Y_test)
+            [~,pred] = max(pihat(i,:));
+            preds(i) = pred;
+        end
+        accs(run) = sum(preds==Y_test)./length(Y_test);
+    else
+        svm_model = svmtrain(Y_train', X_train, svm_options); %nu-svm is supposed to be -s 1??? -t 0 is linear kernel, -t 2 rbf
+        [~, acc, ~] = svmpredict(Y_test', X_test, svm_model);
+        accs(run) = acc(1);
+    end
     
-    svm_model = svmtrain(Y_train', X_train, svm_options); %nu-svm is supposed to be -s 1??? -t 0 is linear kernel, -t 2 rbf
-    [~, acc, ~] = svmpredict(Y_test', X_test, svm_model);
-    accs(run) = acc(1);
 end
 
 mean_acc = mean(accs);
