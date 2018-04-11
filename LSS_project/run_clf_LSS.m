@@ -39,20 +39,7 @@ for run = 1:nruns
     %% run classifiers
     
     if svm_options==0
-         try
-            [B,~,~] = mnrfit(X_train,Y_train');
-        catch %if matrix is not PD, then take off features
-            X_train = X_train(:,1:end-1);
-            X_test = X_test(:,1:end-1);
-           [B,~,~] = mnrfit(X_train,Y_train');
-        end
-        pihat = mnrval(B,X_test);
-        preds=[];
-        for i = 1:length(Y_test)
-            [~,pred] = max(pihat(i,:));
-            preds(i) = pred;
-        end
-        accs(run) = sum(preds==Y_test)./length(Y_test);
+        accs(run) = logreg(X_train,Y_train,X_test,Y_test);
     else
         svm_model = svmtrain(Y_train', X_train, svm_options); %nu-svm is supposed to be -s 1??? -t 0 is linear kernel, -t 2 rbf
         [~, acc, ~] = svmpredict(Y_test', X_test, svm_model);

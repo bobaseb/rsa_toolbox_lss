@@ -21,14 +21,14 @@ addpath(genpath(toolboxRoot)); %add all sub-paths to path
 addpath('/home/seb/Documents/libsvm-3.22/matlab');
 
 %where to save the simulation results
-save_path = '/media/seb/HD_Numba_Juan/sim_results_1voxel_nosmoothing';
+save_path = '/media/seb/HD_Numba_Juan/sim_results_1voxel_nosmoothing_moData';
 
 %% setup model parameters
 
 parjob = 1; %1 if using cluster, runs njobs
 njobs = 50; %number of jobs per noise setting, only if running on many cores
 
-simulationOptions.nRepititions = 20; %repetitions per stimulus
+simulationOptions.nRepititions = 200; %repetitions per stimulus
 simulationOptions.nruns = 3; %separate fMRI blocks
 simulationOptions.stimulusDuration = 1.5; %in seconds
 
