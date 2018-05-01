@@ -148,6 +148,7 @@ for o = 1:nNoisyPatterns
     %fMRI.saturated_model = trialImpulseX_TRvol2;
     fMRI.volumeSize_vox = simulationOptions.volumeSize_vox;
     fMRI.X_all = X_all;
+    fMRI.X_all.model0 = X;
     
 	varargout{o + 3} = fMRI;
     

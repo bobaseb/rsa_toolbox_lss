@@ -21,14 +21,14 @@ addpath(genpath(toolboxRoot)); %add all sub-paths to path
 addpath('/home/seb/Documents/libsvm-3.22/matlab');
 
 %where to save the simulation results
-save_path = '/media/seb/HD_Numba_Juan/sim_results_1voxel_nosmoothing_moData';
+save_path = '/media/seb/HD_Numba_Juan/sim_results_1voxel_nosmoothing_noise100_300samps';
 
 %% setup model parameters
 
-parjob = 1; %1 if using cluster, runs njobs
+parjob = 0; %1 if using cluster, runs njobs
 njobs = 50; %number of jobs per noise setting, only if running on many cores
 
-simulationOptions.nRepititions = 200; %repetitions per stimulus
+simulationOptions.nRepititions = 300; %repetitions per stimulus
 simulationOptions.nruns = 3; %separate fMRI blocks
 simulationOptions.stimulusDuration = 1.5; %in seconds
 
@@ -64,19 +64,19 @@ simulationOptions.voxelSize_mm = [3 3 3.75];
 % The amount of noise to be added by the simulated scanner. This corresponds to
 % the square of the standard deviation of the gaussian distibution from which
 % the noise is drawn (?).
-simulationOptions.scannerNoiseLevel = 10000; % used to be 3000
+simulationOptions.scannerNoiseLevel = 100; %3000; %10000./1000; % used to be 3000
 
 % A 4-tuple. The first three entries are the x, y and z values for the gaussian
 % spatial smoothing kernel FWHM in mm and the fourth is the size of the temporal
 % smoothing FWHM.
 simulationOptions.spatiotemporalSmoothingFWHM_mm_s = [1 1 1 1]; %[4 4 4 4.5];
 
-simulationOptions.brainVol = [64 64 32];
-simulationOptions.effectCen = [20 20 15];
+simulationOptions.brainVol = simulationOptions.volumeSize_vox*3;%[64 64 32];
+simulationOptions.effectCen = [randi(round(simulationOptions.volumeSize_vox(1)*1.5)) randi(round(simulationOptions.volumeSize_vox(2)*1.5)) randi(round(simulationOptions.volumeSize_vox(3)*1.5))];%[20 20 15];
 
 %% setup the noise levels and collinearity (through trial duration)
 
-% with these two lists, 8 levels will be run in total
+% with these two lists, 8 levels will be run in totaldelete(gcp('nocreate'))
 
 trial_duration_list = [2,3,4]; % in seconds
 big_sigma_list = [10, 15, 20]; % sigma for the hyper-ellipse containing the mean random vectors

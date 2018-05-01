@@ -1,4 +1,4 @@
-function [all_chosen_voxels, mean_acc] = run_clf(glm_model,DATA,nconditions,nruns,nf,svm_options)
+function [all_chosen_voxels, mean_acc] = run_clf_LSS(glm_model,DATA,nconditions,nruns,nf,svm_options)
 %runs CV classifiers (SVM or logistic regression), needs anova_vec function for feature selection
 
 %% evaluate glm models
@@ -26,8 +26,9 @@ for run = 1:nruns
     
     %% do feature selection (anovas/single voxel)
     if nf==1
-        X_test = X_test(:,DATA.rand_signal_voxel);
-        X_train = X_train(:,DATA.rand_signal_voxel);
+        %X_test = X_test(:,DATA.rand_signal_voxel); %used to do this, ended
+        %up retaining only 1 voxel to clear up memory
+        %X_train = X_train(:,DATA.rand_signal_voxel);
     else
         anovas = anova_vec(X_train,Y_train);
         [~,voxel_ranks] = sort(anovas,'descend');
