@@ -135,7 +135,7 @@ for o = 1:nNoisyPatterns
     
     %fMRI.B_noisy = B_noisy; %used to be saved as just fMRI.B
     fMRI.Y_noisy = Y_noisy;
-    fMRI.X = X;
+    %fMRI.X = X;
     fMRI.groundTruth = b;
     
     %save some extra goodies

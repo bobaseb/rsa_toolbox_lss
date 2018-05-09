@@ -3,9 +3,7 @@ function [accs, DATA2] = run_sim_LSS(simulationOptions)
 % runs simulations with functions simulateClusteredfMRIData_fullBrain_LSS &
 % run_clf_LSS
 
-%Memory footprint can be an issue here, especially if running on multiple
-%cores. Probably best to run the classifier after estimating each model and
-%then clearing the model from memory (by nesting the for loops).
+%Memory footprint can be an issue here...
 
 import rsa.sim.*
 
@@ -35,7 +33,7 @@ for run = 1:simulationOptions.nruns
     
     [~,~,~, DATA.(sprintf('run%d',run)).fMRI] = simulateClusteredfMRIData_fullBrain_LSS(simulationOptions);
     
-    refX = DATA.(sprintf('run%d',run)).fMRI.X; %reference X for all models
+    refX = DATA.(sprintf('run%d',run)).fMRI.X_all.model0; %reference X for all models
     
     true_voxel_msk = DATA.(sprintf('run%d',run)).fMRI.B_true~=0; %non-zero voxel indices for locating signal voxels
     signal_voxel_cols = find(sum(true_voxel_msk));
@@ -80,7 +78,7 @@ i=1;
 
 for run = 1:simulationOptions.nruns
     % saturated model (LSA)
-    X = refX;
+    X = DATA.(sprintf('run%d',run)).fMRI.X_all.model0;
     DATA.(sprintf('run%d',run)).fMRI.B_LSA = inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy;
     tmp_B_LSA = reshape(DATA.(sprintf('run%d',run)).fMRI.B_LSA(true_voxel_msk),num_signal_voxels,1);
     [DATA2.(sprintf('run%d',run)).r1,DATA2.(sprintf('run%d',run)).p1] = corr(tmp_B_true,tmp_B_LSA);
@@ -90,71 +88,75 @@ end
 model = 'B_LSA';
 [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
 i=i+1;
-DATA.(sprintf('run%d',run)).fMRI.(model) = [];
-
-
-
-% LSS00 %one glm per trial (Mumford et al. method)
 for run = 1:simulationOptions.nruns
-    DATA.(sprintf('run%d',run)).fMRI.B_LSS00=[];
-    for trial = 1:size(refX,2)
-        X = DATA.(sprintf('run%d',run)).fMRI.X_all.model1.(sprintf('num%d',trial));
-        B_hats = inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy;
-        DATA.(sprintf('run%d',run)).fMRI.B_LSS00 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS00; B_hats(1,:)];
-    end
-    tmp_B_LSS00 = reshape(DATA.(sprintf('run%d',run)).fMRI.B_LSS00(true_voxel_msk),num_signal_voxels,1);
-    [DATA2.(sprintf('run%d',run)).r2,DATA2.(sprintf('run%d',run)).p2] = corr(tmp_B_true,tmp_B_LSS00);
-    DATA2.(sprintf('run%d',run)).var2 = var(tmp_B_LSS00);
-    X=[];
+    DATA.(sprintf('run%d',run)).fMRI.(model) = [];
 end
-model = 'B_LSS00';
-[~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
-i=i+1;
-%DATA.(sprintf('run%d',run)).fMRI.(model) = []; %don't clear this one since
-%it is used for padding
 
-
-% LSS01
-for run = 1:simulationOptions.nruns
-    DATA.(sprintf('run%d',run)).fMRI.B_LSS01=[];
-    for trial = 1:size(refX,2)-1
-        X = DATA.(sprintf('run%d',run)).fMRI.X_all.model2.(sprintf('num%d',trial));
-        B_hats = inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy;
-        DATA.(sprintf('run%d',run)).fMRI.B_LSS01 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS01; B_hats(1,:)];
+if length(simulationOptions.model_list) > 1
+    
+    % LSS00 %one glm per trial (Mumford et al. method)
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.B_LSS00=[];
+        for trial = 1:size(refX,2)
+            X = DATA.(sprintf('run%d',run)).fMRI.X_all.model1.(sprintf('num%d',trial));
+            B_hats = inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy;
+            DATA.(sprintf('run%d',run)).fMRI.B_LSS00 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS00; B_hats(1,:)];
+        end
+        tmp_B_LSS00 = reshape(DATA.(sprintf('run%d',run)).fMRI.B_LSS00(true_voxel_msk),num_signal_voxels,1);
+        [DATA2.(sprintf('run%d',run)).r2,DATA2.(sprintf('run%d',run)).p2] = corr(tmp_B_true,tmp_B_LSS00);
+        DATA2.(sprintf('run%d',run)).var2 = var(tmp_B_LSS00);
+        X=[];
     end
-    DATA.(sprintf('run%d',run)).fMRI.B_LSS01 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS01; DATA.(sprintf('run%d',run)).fMRI.B_LSS00(end,:)]; %do some padding for edges
-    tmp_B_LSS01 = reshape(DATA.(sprintf('run%d',run)).fMRI.B_LSS01(true_voxel_msk),num_signal_voxels,1);
-    [DATA2.(sprintf('run%d',run)).r3,DATA2.(sprintf('run%d',run)).p3] = corr(tmp_B_true,tmp_B_LSS01);
-    DATA2.(sprintf('run%d',run)).var3 = var(tmp_B_LSS01);
-    X=[];
-end
-model = 'B_LSS01';
-[~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
-i=i+1;
-DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload
-
-
-
-% LSS10
-for run = 1:simulationOptions.nruns
-    DATA.(sprintf('run%d',run)).fMRI.B_LSS10=[];
-    for trial = 1:size(refX,2)-1
-        X = DATA.(sprintf('run%d',run)).fMRI.X_all.model2.(sprintf('num%d',trial));
-        B_hats = inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy;
-        DATA.(sprintf('run%d',run)).fMRI.B_LSS10 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS10; B_hats(2,:)];
+    model = 'B_LSS00';
+    [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
+    i=i+1;
+    %DATA.(sprintf('run%d',run)).fMRI.(model) = []; %don't clear this one since
+    %it is used for padding
+    
+    
+    % LSS01
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.B_LSS01=[];
+        for trial = 1:size(refX,2)-1
+            X = DATA.(sprintf('run%d',run)).fMRI.X_all.model2.(sprintf('num%d',trial));
+            B_hats = inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy;
+            DATA.(sprintf('run%d',run)).fMRI.B_LSS01 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS01; B_hats(1,:)];
+        end
+        DATA.(sprintf('run%d',run)).fMRI.B_LSS01 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS01; DATA.(sprintf('run%d',run)).fMRI.B_LSS00(end,:)]; %do some padding for edges
+        tmp_B_LSS01 = reshape(DATA.(sprintf('run%d',run)).fMRI.B_LSS01(true_voxel_msk),num_signal_voxels,1);
+        [DATA2.(sprintf('run%d',run)).r3,DATA2.(sprintf('run%d',run)).p3] = corr(tmp_B_true,tmp_B_LSS01);
+        DATA2.(sprintf('run%d',run)).var3 = var(tmp_B_LSS01);
+        X=[];
     end
-    DATA.(sprintf('run%d',run)).fMRI.B_LSS10 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS00(1,:); DATA.(sprintf('run%d',run)).fMRI.B_LSS10];
-    tmp_B_LSS10 = reshape(DATA.(sprintf('run%d',run)).fMRI.B_LSS10(true_voxel_msk),num_signal_voxels,1);
-    [DATA2.(sprintf('run%d',run)).r4,DATA2.(sprintf('run%d',run)).p4] = corr(tmp_B_true,tmp_B_LSS10);
-    DATA2.(sprintf('run%d',run)).var4 = var(tmp_B_LSS10);
-    X=[];
+    model = 'B_LSS01';
+    [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
+    i=i+1;
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload
+    end
+    
+    
+    % LSS10
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.B_LSS10=[];
+        for trial = 1:size(refX,2)-1
+            X = DATA.(sprintf('run%d',run)).fMRI.X_all.model2.(sprintf('num%d',trial));
+            B_hats = inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy;
+            DATA.(sprintf('run%d',run)).fMRI.B_LSS10 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS10; B_hats(2,:)];
+        end
+        DATA.(sprintf('run%d',run)).fMRI.B_LSS10 = [DATA.(sprintf('run%d',run)).fMRI.B_LSS00(1,:); DATA.(sprintf('run%d',run)).fMRI.B_LSS10];
+        tmp_B_LSS10 = reshape(DATA.(sprintf('run%d',run)).fMRI.B_LSS10(true_voxel_msk),num_signal_voxels,1);
+        [DATA2.(sprintf('run%d',run)).r4,DATA2.(sprintf('run%d',run)).p4] = corr(tmp_B_true,tmp_B_LSS10);
+        DATA2.(sprintf('run%d',run)).var4 = var(tmp_B_LSS10);
+        X=[];
+    end
+    model = 'B_LSS10';
+    [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
+    i=i+1;
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload
+    end
 end
-model = 'B_LSS10';
-[~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
-i=i+1;
-DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload
-
-
 
 
 if length(simulationOptions.model_list) > 4
@@ -176,8 +178,9 @@ if length(simulationOptions.model_list) > 4
     model = 'B_LSS02';
     [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
     i=i+1;
-    DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload   
-    
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload   
+    end
     
     
     % LSS11
@@ -197,8 +200,9 @@ if length(simulationOptions.model_list) > 4
     model = 'B_LSS11';
     [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
     i=i+1;
-    DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload    
-    
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload    
+    end
     
     
     % LSS20
@@ -218,8 +222,9 @@ if length(simulationOptions.model_list) > 4
     model = 'B_LSS20';
     [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
     i=i+1;
-    DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload    
-    
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload    
+    end
     
     
     % LSS12
@@ -240,8 +245,9 @@ if length(simulationOptions.model_list) > 4
     model = 'B_LSS12';
     [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
     i=i+1;
-    DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload
-    
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload
+    end
     
     
     % LSS21
@@ -262,8 +268,9 @@ if length(simulationOptions.model_list) > 4
     model = 'B_LSS21';
     [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
     i=i+1;
-    DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload    
-    
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload    
+    end
     
     
     % LSS22
@@ -287,16 +294,18 @@ if length(simulationOptions.model_list) > 4
     end
     [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
     %i=i+1;
-    DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload
+    for run = 1:simulationOptions.nruns
+        DATA.(sprintf('run%d',run)).fMRI.(model) = []; %clear variable due to memory overload
+    end
     
 end
 
+for run = 1:simulationOptions.nruns
+    DATA.(sprintf('run%d',run)).fMRI.B_LSS00=[]; %since padding finished on all models, clear up more memory
+end
 
-DATA.(sprintf('run%d',run)).fMRI.B_LSS00=[]; %since padding finished on all models, clear up more memory
-
-
-DATA2.(sprintf('run%d',run)).X = DATA.(sprintf('run%d',run)).fMRI.X;
-DATA2.(sprintf('run%d',run)).X_all = DATA.(sprintf('run%d',run)).fMRI.X_all;
+%DATA2.(sprintf('run%d',run)).X = DATA.(sprintf('run%d',run)).fMRI.X;
+%DATA2.(sprintf('run%d',run)).X_all = DATA.(sprintf('run%d',run)).fMRI.X_all;
 DATA2.(sprintf('run%d',run)).groundTruth = DATA.(sprintf('run%d',run)).fMRI.groundTruth;
 DATA2.(sprintf('run%d',run)).sequence = DATA.(sprintf('run%d',run)).fMRI.sequence;
 %DATA2.(sprintf('run%d',run)).b = DATA.(sprintf('run%d',run)).fMRI.b;
