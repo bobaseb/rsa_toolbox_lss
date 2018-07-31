@@ -17,7 +17,7 @@ import rsa.stat.*
 import rsa.util.*
 
 delta=2500; %as in BV (averages of the subjects?)
-tau=1250;
+tau=5000; %1250;
 n=3;
 
 

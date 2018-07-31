@@ -120,10 +120,23 @@ for o = 1:nNoisyPatterns
 	E = randn(nTimePoints, nVoxels);
 	E = sig * E;
 
+    % Smooth across space
 	[E, smoothedYfilename_ignore] = spatiallySmooth4DfMRI_mm(E, simulationOptions.brainVol, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(1:3), simulationOptions.voxelSize_mm);
 
 	% Smooth across time
 	E = temporallySmoothTimeSpaceMatrix(E, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(4) / simulationOptions.TR);
+    
+    % Smooth across time with variants
+    %E1 = temporallySmoothTimeSpaceMatrix(E, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(4) / simulationOptions.TR - 1);
+    %E2 = temporallySmoothTimeSpaceMatrix(E, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(4) / simulationOptions.TR);
+    %E3 = temporallySmoothTimeSpaceMatrix(E, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(4) / simulationOptions.TR + 1);
+    
+    %sample from E1, E2, E3
+    %E = 
+    
+    % Smooth across space after time
+    %[E, smoothedYfilename_ignore] = spatiallySmooth4DfMRI_mm(E, simulationOptions.brainVol, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(1:3), simulationOptions.voxelSize_mm);
+
 
 	%% Do GLM for Y_true matrix
 	Y_true = X * B_true;

@@ -1,5 +1,8 @@
 function [accs, DATA2] = run_sim_LSS(simulationOptions)
 
+% all_sigma_est, used to be middle output but only coded for the 1 voxel
+% setting
+
 % runs simulations with functions simulateClusteredfMRIData_fullBrain_LSS &
 % run_clf_LSS
 
@@ -68,7 +71,8 @@ if simulationOptions.nf == 1
     num_signal_voxels = simulationOptions.nRepititions;
     tmp_B_true = (1:simulationOptions.nRepititions)';
     for run = 1:simulationOptions.nruns
-        %size(DATA.(sprintf('run%d',run)).fMRI.Y_noisy)
+        %DATA.(sprintf('run%d',run)).fMRI.Y_noisy_smoothed = mean(DATA.(sprintf('run%d',run)).fMRI.Y_noisy(:,DATA.rand_signal_voxel-3:DATA.rand_signal_voxel+3)')';
+        DATA.(sprintf('run%d',run)).fMRI.Y_noisy2 = DATA.(sprintf('run%d',run)).fMRI.Y_noisy(:,DATA.rand_signal_voxel-3:DATA.rand_signal_voxel+3);
         DATA.(sprintf('run%d',run)).fMRI.Y_noisy = DATA.(sprintf('run%d',run)).fMRI.Y_noisy(:,DATA.rand_signal_voxel);
         %size(DATA.(sprintf('run%d',run)).fMRI.Y_noisy)
     end
@@ -80,10 +84,17 @@ for run = 1:simulationOptions.nruns
     % saturated model (LSA)
     X = DATA.(sprintf('run%d',run)).fMRI.X_all.model0;
     DATA.(sprintf('run%d',run)).fMRI.B_LSA = inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy;
+    Y_hat = X * DATA.(sprintf('run%d',run)).fMRI.B_LSA;
+    %Y_hat_smoothed = X * (inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy_smoothed);
+    %residuals = DATA.(sprintf('run%d',run)).fMRI.Y_noisy - Y_hat;
+    %DATA.(sprintf('run%d',run)).fMRI.sigma_est = detect_gauss(residuals);
+    %B_LSA2 = mean(inv(X' * X) * X' * DATA.(sprintf('run%d',run)).fMRI.Y_noisy2,2);
+    %DATA.(sprintf('run%d',run)).fMRI.sigma_est = detect_gauss(DATA.(sprintf('run%d',run)).fMRI.Y_noisy);
     tmp_B_LSA = reshape(DATA.(sprintf('run%d',run)).fMRI.B_LSA(true_voxel_msk),num_signal_voxels,1);
     [DATA2.(sprintf('run%d',run)).r1,DATA2.(sprintf('run%d',run)).p1] = corr(tmp_B_true,tmp_B_LSA);
     DATA2.(sprintf('run%d',run)).var1 = var(tmp_B_LSA);
     X=[];
+    %[DATA2.(sprintf('run%d',run)).acf,~,~] = autocorr(DATA.(sprintf('run%d',run)).fMRI.Y_noisy); %sample autocorr estimation
 end
 model = 'B_LSA';
 [~, accs(i)] = run_clf_LSS(model,DATA,simulationOptions.nConditions,simulationOptions.nruns,simulationOptions.nf,simulationOptions.svm_options);
@@ -302,16 +313,19 @@ end
 
 for run = 1:simulationOptions.nruns
     DATA.(sprintf('run%d',run)).fMRI.B_LSS00=[]; %since padding finished on all models, clear up more memory
+
+
+    %DATA2.(sprintf('run%d',run)).X = DATA.(sprintf('run%d',run)).fMRI.X;
+    %DATA2.(sprintf('run%d',run)).X_all = DATA.(sprintf('run%d',run)).fMRI.X_all;
+    DATA2.(sprintf('run%d',run)).groundTruth = DATA.(sprintf('run%d',run)).fMRI.groundTruth;
+    DATA2.(sprintf('run%d',run)).sequence = DATA.(sprintf('run%d',run)).fMRI.sequence;
+    %DATA2.(sprintf('run%d',run)).b = DATA.(sprintf('run%d',run)).fMRI.b;
+    DATA2.(sprintf('run%d',run)).volumeSize_vox = DATA.(sprintf('run%d',run)).fMRI.volumeSize_vox;
+    DATA2.(sprintf('run%d',run)).simulationOptions = simulationOptions;
+    %DATA2.(sprintf('run%d',run)).sigma_est = DATA.(sprintf('run%d',run)).fMRI.sigma_est;
+    
+    %all_sigma_est(run) = DATA.(sprintf('run%d',run)).fMRI.sigma_est;
 end
-
-%DATA2.(sprintf('run%d',run)).X = DATA.(sprintf('run%d',run)).fMRI.X;
-%DATA2.(sprintf('run%d',run)).X_all = DATA.(sprintf('run%d',run)).fMRI.X_all;
-DATA2.(sprintf('run%d',run)).groundTruth = DATA.(sprintf('run%d',run)).fMRI.groundTruth;
-DATA2.(sprintf('run%d',run)).sequence = DATA.(sprintf('run%d',run)).fMRI.sequence;
-%DATA2.(sprintf('run%d',run)).b = DATA.(sprintf('run%d',run)).fMRI.b;
-DATA2.(sprintf('run%d',run)).volumeSize_vox = DATA.(sprintf('run%d',run)).fMRI.volumeSize_vox;
-DATA2.(sprintf('run%d',run)).simulationOptions = simulationOptions;
-
 %% run classifiers (used to be run all at once but took up too much memory)
 %for i = 1:length(simulationOptions.model_list)
 %     model = 'LSA'; %simulationOptions.model_list{i}
