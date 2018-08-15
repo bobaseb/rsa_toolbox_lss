@@ -108,20 +108,23 @@ if scaleTrialResponseTo1
     % vols miss the max HR)
 end
 
-lengthHR_ms=20*1000; % 20 seconds%% create covariance matrix
+lengthHR_ms=20*1000; % 20 seconds%
 
-sigma_mat = eye(simulationOptions.signal_voxels); % initialize an identity matrix
+% create covariance matrix
+% 
+% sigma_mat = eye(simulationOptions.signal_voxels); % initialize an identity matrix
+% 
+% R=[];
+% for cond = 1:simulationOptions.nConditions
+%     R = [R; mvnrnd(randn(1,simulationOptions.signal_voxels),sigma_mat*simulationOptions.big_sigma)]; % create the mean vectors for the true signal
+% end
+% 
+% sigma_mat(sigma_mat==0) = simulationOptions.corrs; % add some correlations
+% cov_mat = wishrnd(sigma_mat*simulationOptions.trial_sigma,round(simulationOptions.cov_mat_df)); % full covariance, depends on df
+% 
+% simulationOptions.R = R; % save the mean vectors
+% simulationOptions.cov_mat = cov_mat./round(simulationOptions.cov_mat_df); % scale the covariance matrix
 
-R=[];
-for cond = 1:simulationOptions.nConditions
-    R = [R; mvnrnd(randn(1,simulationOptions.signal_voxels),sigma_mat*simulationOptions.big_sigma)]; % create the mean vectors for the true signal
-end
-
-sigma_mat(sigma_mat==0) = simulationOptions.corrs; % add some correlations
-cov_mat = wishrnd(sigma_mat*simulationOptions.trial_sigma,round(simulationOptions.cov_mat_df)); % full covariance, depends on df
-
-simulationOptions.R = R; % save the mean vectors
-simulationOptions.cov_mat = cov_mat./round(simulationOptions.cov_mat_df); % scale the covariance matrix
 lengthHR_TRvol=lengthHR_ms/TRvol_ms;
 
 %samplingTimes_ms=[0:lengthHR_TRvol-1].*TRvol_ms+TRvol_ms/2; % sample in the middle of each volume acquisition
