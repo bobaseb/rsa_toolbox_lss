@@ -35,8 +35,8 @@ nReps = simulationOptions.nRepititions;
 %distribution
 b=[];
 for rep = 1:nReps*simulationOptions.nConditions %for each stimulus presentation
-   rndvec = mvnrnd(simulationOptions.R(mod(rep,simulationOptions.nConditions)+1,:),simulationOptions.cov_mat);% sample each presentation according to previously defined covariance matrix & mean vectors  
-   b = [b; rndvec]; 
+   rndvec = mvnrnd(simulationOptions.R(mod(rep,simulationOptions.nConditions)+1,:),simulationOptions.cov_mat);% sample each presentation according to previously defined covariance matrix & mean vectors
+   b = [b; rndvec];
    sequence(rep) = mod(rep,simulationOptions.nConditions)+1; %start creating the sequence vector as well
 end
 
@@ -58,7 +58,10 @@ nVoxels = size(B_true,2);
 
 null_trials = (simulationOptions.nConditions+1)*ones(1,ceil(simulationOptions.nConditions*simulationOptions.nRepititions/3)); %first create the null trials
 
-% alpha = 0.75; %staying probability 
+%disp(null_trials)
+%exit
+
+% alpha = 0.75; %staying probability
 % current_state = binornd(1,0.5) + 1;
 % P=[];
 % for i = 1:simulationOptions.nConditions*simulationOptions.nRepititions
@@ -72,7 +75,7 @@ for i = 1:simulationOptions.nConditions
     P = [P i:simulationOptions.nConditions:length(sequence)];
 end
 
-sequence = sequence(P); %permute the sequence
+%sequence = sequence(P); %permute the sequence
 orig_sequence = sequence; %save before adding null trials, will need this below
 
 p2 = randperm(length(sequence)-1); %get random insertion points for null trials
@@ -81,6 +84,9 @@ for i = 1:length(null_trials)
     sequence = [sequence(1:ind),null_trials(1),sequence(ind+1:end)]; %insert null trial
     null_trials(1)=[]; %deplete the null trial list until finished
 end
+
+%disp(sequence)
+%exit
 
 b = b(P,:); %lets permute our trial-by-trial signal vectors
 B_true = B_true(P,:); %as well as their brain-embedded version
@@ -113,7 +119,7 @@ for model = 1:5
     windows = length(orig_sequence)-(window_length-1); %how many windows fit in the original sequence
     for num_window = 1:windows
         sequence_tmp = orig_sequence; %let's create a new sequence
-        msk = 1:length(orig_sequence)>=(num_window+window_length) | 1:length(orig_sequence)<num_window; %mask for anything not in window 
+        msk = 1:length(orig_sequence)>=(num_window+window_length) | 1:length(orig_sequence)<num_window; %mask for anything not in window
         sequence_tmp(msk) = max(sequence); %let's code out of window with max(sequence) for now
         for null_ind = 1:length(find(sequence==max(sequence))) %for each null trial
             sequence_tmp = [sequence_tmp(1:p2(null_ind)),max(sequence)+1,sequence_tmp(p2(null_ind)+1:end)]; %add in the null trials again for this sequence
@@ -124,20 +130,22 @@ for model = 1:5
 end
 
 nTimePoints = size(X,1);
+%disp(nTimePoints)
+%exit
 sig = sqrt(simulationOptions.scannerNoiseLevel);
 
 varargout{1} = B_true;
 
 for o = 1:nNoisyPatterns
-	
+
 	%% Generate E matrix
 	E = randn(nTimePoints, nVoxels);
     E = sig * E;
-    
+
     %sigma_mat = eye(nTimePoints); % initialize an identity matrix
     %sigma_mat(sigma_mat==0) = simulationOptions.corrs; % add some correlations
     %cov_mat = sigma_mat*sig;
-    
+
     rho = 0.12; %simulationOptions.corrs;
     %produce temporally correlated noise
     V = zeros(nTimePoints,nTimePoints);
@@ -149,7 +157,7 @@ for o = 1:nNoisyPatterns
     end
     %cov_mat = sig * V; %V is the correlation matrix that follows rho
     cov_mat = V;
-    
+
     %E2 = mvnrnd(zeros(1,nTimePoints),cov_mat, nVoxels);
     E2 = mvnrnd(E',cov_mat);
     %E2 = mvnrnd(zeros(1,simulationOptions.nConditions),cov_mat, nVoxels);
@@ -157,24 +165,24 @@ for o = 1:nNoisyPatterns
     %E2 = mvnrnd(zeros(1,simulationOptions.nConditions),cov_mat, nTimePoints);
     %E2 = mvnrnd(B_true',cov_mat);
     %E = E2';
-	
+
     %E2 = repmat(sin([1:nTimePoints]'),1,nVoxels) + 100*randn(nTimePoints,nVoxels);
-    
-    %B_true = E2; 
+
+    %B_true = E2;
     %X = X + E2;
     %E = E + E2'; %probably want to turn off gaussian smoother for this
-    
+
     % Smooth across space
 	[E, smoothedYfilename_ignore] = spatiallySmooth4DfMRI_mm(E, simulationOptions.brainVol, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(1:3), simulationOptions.voxelSize_mm);
 
 	% Smooth across time
 	E = temporallySmoothTimeSpaceMatrix(E, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(4) / simulationOptions.TR);
-    
+
     % Smooth across time with variants
     %E1 = temporallySmoothTimeSpaceMatrix(E, (simulationOptions.spatiotemporalSmoothingFWHM_mm_s(4) / simulationOptions.TR) + 0);
     %E2 = temporallySmoothTimeSpaceMatrix(E, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(4) / simulationOptions.TR + 1);
     %E3 = temporallySmoothTimeSpaceMatrix(E, (simulationOptions.spatiotemporalSmoothingFWHM_mm_s(4) / simulationOptions.TR) + 2);
-    
+
     %sample from E1, E2, E3
     %tsmooth_inds = crossvalind('Kfold', length(E), 3);
     %E(:,tsmooth_inds==1) = E1(:,tsmooth_inds==1);
@@ -182,27 +190,27 @@ for o = 1:nNoisyPatterns
     %E(:,tsmooth_inds==2) = E2(:,tsmooth_inds==2);
     %[E, smoothedYfilename_ignore] = spatiallySmooth4DfMRI_mm(E, simulationOptions.brainVol, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(1:3), simulationOptions.voxelSize_mm);
     %E(:,tsmooth_inds==3) = E3(:,tsmooth_inds==3);
-    
+
     % Smooth across space after time
     %[E, smoothedYfilename_ignore] = spatiallySmooth4DfMRI_mm(E, simulationOptions.brainVol, simulationOptions.spatiotemporalSmoothingFWHM_mm_s(1:3), simulationOptions.voxelSize_mm);
 
-    
+
 
 	%% Do GLM for Y_true matrix
 	Y_true = X * B_true;
     varargout{2} = msk;
     varargout{3} = Y_true;
 	%% Do GLM for Y_noise matrix
-	Y_noisy = Y_true;% + E;
+	Y_noisy = Y_true + E;
     %Y_noisy = (X * (B_true + E2*2)) + E*1; %need to measure correlation of B_true with E2!!!!
     %Y_noisy = ((X * (E2*5)) + (X * B_true))./2 + E*1;
 	%B_noisy = inv(X' * X) * X' * Y_noisy;
-    
+
     %fMRI.B_noisy = B_noisy; %used to be saved as just fMRI.B
     fMRI.Y_noisy = Y_noisy;
     %fMRI.X = X;
     fMRI.groundTruth = b;
-    
+
     %save some extra goodies
     %fMRI.E = E;
     fMRI.sequence = sequence;
@@ -216,10 +224,10 @@ for o = 1:nNoisyPatterns
     fMRI.volumeSize_vox = simulationOptions.volumeSize_vox;
     fMRI.X_all = X_all;
     fMRI.X_all.model0 = X;
-    
+
 	varargout{o + 3} = fMRI;
-    
-	
+
+
 	clear E Y_noisy B_noisy;
-	
+
 end%for:o
